@@ -44,10 +44,10 @@ class KtmbTrain
     }
     public void checkNoPaymentBtn()
     {
-        WebDriverWait wait = new WebDriverWait(driver, TimeSpan.FromSeconds(1));
+        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(1));
         wait.PollingInterval = TimeSpan.FromMilliseconds(200);
 
-        IWebElement noPaymentBtn = driver.FindElement(By.XPath("//*[@id=\"validationSummaryModal\"]/div/div/div[2]/div/div[2]/button"));
+        var noPaymentBtn = driver.FindElement(By.XPath("//*[@id=\"validationSummaryModal\"]/div/div/div[2]/div/div[2]/button"));
         if(noPaymentBtn.Displayed == false)
         {
             Console.WriteLine("noPaymentBtn not displayed");
@@ -73,7 +73,7 @@ class KtmbTrain
 
     public void selectCalendar()
     {
-        IWebElement OnwardDate = driver.FindElement(By.XPath("//*[@id=\"OnwardDate\"]"));
+        var OnwardDate = driver.FindElement(By.XPath("//*[@id=\"OnwardDate\"]"));
         try
         {
             OnwardDate.Click();
@@ -83,9 +83,40 @@ class KtmbTrain
             Console.WriteLine("OnwardDate not found");
         }
 
-        IWebElement calendar = driver.FindElement(By.XPath("/html/body/section/div/div[1]/section/header/div[1]/select[1]"));
-        SelectElement currMonth = new SelectElement(calendar);
+        var calendar = driver.FindElement(By.XPath("/html/body/section/div/div[1]/section/header/div[1]/select[1]"));
+        var currMonth = new SelectElement(calendar);
+
+
         Console.WriteLine("Current month is " + currMonth.SelectedOption.Text + ", value is: " + calendar.GetAttribute("value"));
+    }
+
+    public void checkDays()
+    {
+        //IList<IWebElement> daysList = driver.FindElements(By.XPath("/html/body/section/div/div[1]/section/div[2]"));
+        //IList<IWebElement> daysList = driver.FindElements(By.XPath("//*[@class=\"lightpick__days\"]"));
+        var lightPick = driver.FindElement(By.ClassName("lightpick__days"));
+        IList<IWebElement> daysList = lightPick.FindElements(By.TagName("div"));
+        var i = 0;
+        foreach (IWebElement day in daysList)
+        {
+            i++;
+            Console.WriteLine("count = " + i);
+            //long dataTime = long.Parse(daysList[0].GetAttribute("data-time"));            
+            long dataTime = long.Parse(day.GetAttribute("data-time"));
+            DateTimeOffset date = DateTimeOffset.FromUnixTimeMilliseconds(dataTime);
+            TimeZoneInfo sgtInfo = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
+            DateTimeOffset sgtTime = TimeZoneInfo.ConvertTime(date, sgtInfo);
+            Console.WriteLine(sgtTime.Date);
+            //allDays.Add(day.Text);
+        }
+
+        //var j = 0;
+        //foreach(string d in allDays)
+        //{
+        //    j++;
+        //    Console.WriteLine("count days = " + j);
+        //    Console.WriteLine("d = " + d);
+        //}
     }
 
     public void checkIfTicketAvailable()
@@ -93,14 +124,15 @@ class KtmbTrain
         checkNoPaymentBtn();
         Thread.Sleep(1000);
         selectCalendar();
-        Thread.Sleep(2000);
+        Thread.Sleep(1000);
+        checkDays();
         return;
     }
 
 
     static void Main()
     {
-        KtmbTrain ktmWeb = new KtmbTrain();
+        var ktmWeb = new KtmbTrain();
         ktmWeb.startBrowser();
         ktmWeb.checkIfTicketAvailable();
         ktmWeb.closeBrowser();
