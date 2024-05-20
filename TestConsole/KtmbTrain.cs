@@ -104,7 +104,7 @@ class KtmbTrain
             //long dataTime = long.Parse(daysList[0].GetAttribute("data-time"));            
             long dataTime = long.Parse(day.GetAttribute("data-time"));
             DateTimeOffset date = DateTimeOffset.FromUnixTimeMilliseconds(dataTime);
-            TimeZoneInfo sgtInfo = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
+            TimeZoneInfo sgtInfo = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time"); 
             DateTimeOffset sgtTime = TimeZoneInfo.ConvertTime(date, sgtInfo);
             Console.WriteLine(sgtTime.Date);
             //allDays.Add(day.Text);
