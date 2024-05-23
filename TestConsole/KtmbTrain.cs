@@ -173,7 +173,7 @@ class KtmbTrain
         return false;
     }
 
-    private void loginAccount()
+    private void loginAction()
     {
         var emailInput = driver.FindElement(By.XPath("//*[@id=\"Email\"]"));
         emailInput.SendKeys(loginEmail);
@@ -191,7 +191,7 @@ class KtmbTrain
         return;
     }
 
-    private void checkIfTicketAvailable()
+    private void loginAccount()
     {
         checkNoPaymentBtn();
         Thread.Sleep(500);
@@ -202,12 +202,15 @@ class KtmbTrain
         if (loginBtnFound)
         {
             loginBtn.Click();
-            loginAccount();
+            loginAction();
             driver.Navigate().GoToUrl("https://shuttleonline.ktmb.com.my/Home/Shuttle");
             checkNoPaymentBtn();
         }
         Thread.Sleep(500);
+    }
 
+    private void checkIfTicketAvailable()
+    {
         selectCalendar();
         Thread.Sleep(500);
 
@@ -251,6 +254,7 @@ class KtmbTrain
     {
         var ktmWeb = new KtmbTrain();
         ktmWeb.startBrowser();
+        ktmWeb.loginAccount();
         ktmWeb.checkIfTicketAvailable();
         ktmWeb.closeBrowser();
         Environment.Exit(0);
