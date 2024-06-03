@@ -1,35 +1,31 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.Metadata;
-using System.Text;
-using System.Threading.Tasks;
-using OpenQA.Selenium;
+﻿using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
-using OpenQA.Selenium.Remote;
-using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.Interactions;
 using OpenQA.Selenium.Support.UI;
-using static System.Net.Mime.MediaTypeNames;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 class KtmbTrain
 {
     private static readonly string loginEmail = "wongzx96@gmail.com";
     private static readonly string loginPassword = "Omfgleh96@@";
-
-    private IWebDriver driver;
+    private IWebDriver? driver;
+    private DateOnly searchDate;
+    private KtmbTrain(DateTime inputDate)
+    {
+        searchDate = DateOnly.FromDateTime(inputDate);
+    }
     private void startBrowser()
     {
         driver = new ChromeDriver();
         driver.Url = "https://shuttleonline.ktmb.com.my/Home/Shuttle";
         string UrlTitle = driver.Title;
         Console.WriteLine("URL Title is: " + UrlTitle);
+        driver.Manage().Window.Maximize();
     }
     private void closeBrowser()
     {
         driver.Close();
+        Console.WriteLine("browser closed");
     }
     private bool untilClickable(IWebElement element)
     {
@@ -46,27 +42,52 @@ class KtmbTrain
             return false;
         };
     }
+
+    private bool elementAvailable(By findBy)
+    {
+        try
+        {
+            var elementToBeDisplayed = driver.FindElement(findBy);
+            Console.WriteLine("Displayed?" + elementToBeDisplayed.Displayed);
+            Console.WriteLine("Enabled?" + elementToBeDisplayed.Enabled);
+            return elementToBeDisplayed.Displayed && elementToBeDisplayed.Enabled;
+        }
+        catch (StaleElementReferenceException)
+        {
+            Console.WriteLine("Stale element!!");
+            return false;
+        }
+        catch (NoSuchElementException)
+        {
+            Console.WriteLine("No such element!!");
+            return false;
+        }
+    }
     private void checkNoPaymentBtn()
     {
-        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(2));
-        wait.PollingInterval = TimeSpan.FromMilliseconds(200);
-
-        var noPaymentBtn = driver.FindElement(By.XPath("//*[@id=\"validationSummaryModal\"]/div/div/div[2]/div/div[2]/button"));
-        if (noPaymentBtn.Displayed == false)
+        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(1))
         {
-            Console.WriteLine("noPaymentBtn not displayed");
-            return;
-        }
+            PollingInterval = TimeSpan.FromMilliseconds(200),
+        };
+
+        var noPaymentBtnBy = By.XPath("//*[@id=\"validationSummaryModal\"]/div/div/div[2]/div/div[2]/button");
+        //var noPaymentBtn = driver.FindElement(By.XPath("//*[@id=\"validationSummaryModal\"]/div/div/div[2]/div/div[2]/button"));
+        //if (noPaymentBtn.Displayed == false)
+        //{
+        //    Console.WriteLine("noPaymentBtn not displayed");
+        //    return; //quit program
+        //}
 
         try
         {
-            var clicknoPaymentBtn = wait.Until(condition => untilClickable(noPaymentBtn));
-            Thread.Sleep(500);
+            var clicknoPaymentBtn = wait.Until(condition => elementAvailable(noPaymentBtnBy));
+            //Thread.Sleep(500);
 
             if (clicknoPaymentBtn)
             {
+                var noPaymentBtn = driver.FindElement(noPaymentBtnBy);
                 noPaymentBtn.Click();
-                Thread.Sleep(1000);
+                Thread.Sleep(500);
             }
         }
         catch (WebDriverTimeoutException)
@@ -139,6 +160,12 @@ class KtmbTrain
             if(sgtTime.Date.DayOfWeek == DayOfWeek.Friday)
             {
                 Console.WriteLine("Friday found!" + sgtTime.Date);
+                DateOnly calendarDateOnly = DateOnly.FromDateTime(sgtTime.Date);
+                Console.WriteLine("test dateonly = " + calendarDateOnly);
+                if(calendarDateOnly == searchDate)
+                {
+                    Console.WriteLine("input date found!");
+                }
                 return day;
             }
         }
@@ -181,12 +208,8 @@ class KtmbTrain
         var pwdInput = driver.FindElement(By.XPath("//*[@id=\"Password\"]"));
         pwdInput.SendKeys(loginPassword);
 
-        Thread.Sleep(500);
-
         var loginBtn = driver.FindElement(By.XPath("//*[@id=\"LoginButton\"]"));
         loginBtn.Click();
-
-        Thread.Sleep(500); 
 
         return;
     }
@@ -206,10 +229,56 @@ class KtmbTrain
             driver.Navigate().GoToUrl("https://shuttleonline.ktmb.com.my/Home/Shuttle");
             checkNoPaymentBtn();
         }
-        Thread.Sleep(500);
+        Thread.Sleep(200);
     }
 
-    private void checkIfTicketAvailable()
+    //Function to get required departure time
+    private void readTimetable()
+    {
+        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(2))
+        {
+            PollingInterval = TimeSpan.FromMilliseconds(200),
+        };
+
+        var timeTableBy = By.CssSelector(".bg-white.depart-trips");
+        wait.Until(condition => elementAvailable(timeTableBy));
+
+        //IList<IWebElement> departureTimes = timeTable.FindElements(By.TagName("tr"));
+
+        var timeTable = driver.FindElement(By.CssSelector(".bg-white.depart-trips"));
+        IList<IWebElement> departureTimes = timeTable.FindElements(By.XPath("*"));
+
+        var selectTimeBtnBy = By.CssSelector(".btn.select-btn.btn-seat-layout");
+        
+
+        int i = 0;
+        foreach (IWebElement timeList in departureTimes)
+        {
+            i++;
+            string timeDeparture = timeList.GetAttribute("data-hourminute");
+            Console.WriteLine($"{i} {timeDeparture}");
+            if(timeDeparture == "1900")
+            {
+                wait.Until(condition => elementAvailable(selectTimeBtnBy));
+                var selectTimeBtn = timeList.FindElement(selectTimeBtnBy); 
+                Actions actions = new Actions(driver);
+                actions.MoveToElement(selectTimeBtn);
+                actions.Perform();
+                Thread.Sleep(500);
+                Console.WriteLine("Click select now");
+                selectTimeBtn.Click();
+                Thread.Sleep(2000);
+
+                //var captchaBox = driver.FindElement(By.Id("recaptcha-anchor"));
+                //captchaBox.Click();
+                //Thread.Sleep(500); 
+            }
+        }
+
+    }
+    
+    //Main function to do all the stuffs
+    private void checkLatestTicketForSale()
     {
         selectCalendar();
         Thread.Sleep(500);
@@ -217,23 +286,24 @@ class KtmbTrain
         DateTime currDate = DateTime.Now;
         var lastDayOfMth = DateTime.DaysInMonth(currDate.Year, currDate.Month);
 
-        int selectMthCount;
+        
+        int X;
         Console.WriteLine("currDate.day = " + currDate.Day + ",lastDayOfMth = " + lastDayOfMth);
         if (currDate.Day == lastDayOfMth)
         {
-            selectMthCount = 6; 
+            X = 6; 
         }
         else
         {
-            selectMthCount = 5;
+            X = 5;
         }
 
-        selectXMthFromNow(selectMthCount);
+        selectXMthFromNow(X);
 
-        for (int i = 0;i < selectMthCount; i++)
+        for (int i = 0;i < X; i++)
         {
             clickNextMonth();
-            Thread.Sleep(100);
+            //Thread.Sleep(500);
         }
 
         var fridayCalendar = checkDays();
@@ -245,6 +315,8 @@ class KtmbTrain
         var searchSubmitBtn = driver.FindElement(By.XPath("//*[@id=\"btnSubmit\"]"));
         searchSubmitBtn.Click();
 
+        readTimetable();
+
         Thread.Sleep(2000);
         return;
     }
@@ -252,10 +324,22 @@ class KtmbTrain
 
     static void Main()
     {
-        var ktmWeb = new KtmbTrain();
+        //string strDate = "28/06/2024";
+        string strDate = "1/11/2024";
+
+        var ktmWeb = new KtmbTrain(DateTime.Parse(strDate));
+        Console.WriteLine("search date = " + ktmWeb.searchDate);
         ktmWeb.startBrowser();
         ktmWeb.loginAccount();
-        ktmWeb.checkIfTicketAvailable();
+        if (strDate == null)
+        {
+            ktmWeb.checkLatestTicketForSale();
+        }
+        else
+        {
+            ktmWeb.checkLatestTicketForSale();
+            //ktmWeb.searchInputDate();
+        }
         ktmWeb.closeBrowser();
         Environment.Exit(0);
     }
