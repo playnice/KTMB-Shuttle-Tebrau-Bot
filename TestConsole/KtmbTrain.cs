@@ -2,6 +2,7 @@
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Interactions;
 using OpenQA.Selenium.Support.UI;
+using System.ComponentModel.DataAnnotations;
 using System.Net;
 using System.Net.Mail;
 
@@ -23,7 +24,7 @@ class KtmbTrain
         driver.Url = "https://shuttleonline.ktmb.com.my/Home/Shuttle";
         string UrlTitle = driver.Title;
         Console.WriteLine("URL Title is: " + UrlTitle);
-        driver.Manage().Window.Maximize();
+        //driver.Manage().Window.Maximize();
     }
     private void closeBrowser()
     {
@@ -31,15 +32,15 @@ class KtmbTrain
         Console.WriteLine("browser closed");
     }
 
-    private void setupSmtp()
-    {
-        smtpClient = new SmtpClient("smtp.gmail.com")
-        {
-            Port = 587,
-            Credentials = new NetworkCredential("wongzx96@gmail.com", "fnekhicwwzfxuevt"),
-            EnableSsl = true,
-        };
-    }
+    //private void setupSmtp()
+    //{
+    //    smtpClient = new SmtpClient("smtp.gmail.com")
+    //    {
+    //        Port = 587,
+    //        Credentials = new NetworkCredential("wongzx96@gmail.com", "fnekhicwwzfxuevt"),
+    //        EnableSsl = true,
+    //    };
+    //}
     private bool untilClickable(IWebElement element)
     {
         try
@@ -178,14 +179,14 @@ class KtmbTrain
             //    Console.WriteLine("test dateonly = " + calendarDateOnly);
             if(calendarDateOnly == searchDate)
             {
-                //Console.WriteLine("input date found!");
+                Console.WriteLine("input date found!" + calendarDateOnly);
                 return day;
             }
 
-            if(i > 31)
-            {
-                break;
-            }
+            //if(i > 31)
+            //{
+            //    break;
+            //}
             //}
         }
 
@@ -235,6 +236,7 @@ class KtmbTrain
 
     private void loginAccount()
     {
+        Thread.Sleep(1000);
         checkNoPaymentBtn();
         Thread.Sleep(500);
         var loginBtn = driver.FindElement(By.XPath("//*[@id=\"navbarSupportedContent\"]/ul[3]/li/a"));
@@ -276,6 +278,10 @@ class KtmbTrain
         //var selectTimeBtnBy = By.CssSelector(".btn.select-btn.btn-seat-layout");
         var selectTimeBtnBy = By.CssSelector(".btn.select-btn");
 
+        var timeTableDateElm = driver.FindElement(By.XPath("/html/body/div[2]/div[1]/div/div[2]/div[1]/div[2]/div/table/thead/tr/th[4]/div"));
+        string timeTableDate = timeTableDateElm.Text;
+        //Console.WriteLine($"timeTableDate={timeTableDate}");
+
         Thread.Sleep(1000);
 
         int i = 0;
@@ -296,26 +302,33 @@ class KtmbTrain
                 switch (selectBtnText)
                 {
                     case "Sold Out":
-                        Console.WriteLine("Ticket sold out!");
+                        Console.WriteLine($"Ticket sold out for departure time {timeDeparture} at {timeTableDate}!");
                         break;
                     case "Select":
-                        Console.WriteLine("Ticket available!");
-                        smtpClient.Send("wongzx96@gmail.com", 
-                            "wongzx96@gmail.com", 
-                            $"KTMB Available Ticket @{timeDeparture} Alert", 
-                            $"Ticket is available now at departure time {timeDeparture}");
-                        smtpClient.Send("wongzx96@gmail.com", 
-                            "holycowhell3@gmail.com", 
-                            $"KTMB Available Ticket @{timeDeparture} Alert", 
-                            $"Ticket is available now at departure time {timeDeparture}");
-                        smtpClient.Send("wongzx96@gmail.com",
-                            "kilinalaw@gmail.com", $"KTMB Available Ticket @{timeDeparture} Alert",
-                            $"Ticket is available now at departure time {timeDeparture}");
-                        smtpClient.Send("wongzx96@gmail.com",
-                            "kilinalawrencemarcus@gmail.com",
-                            $"KTMB Available Ticket @{timeDeparture} Alert",
-                            $"Ticket is available now at departure time {timeDeparture}");
-                        Console.WriteLine("Email sent...");
+                        using (SmtpClient smtpClient = new SmtpClient("smtp.gmail.com", 587))
+                        {
+                            //Port = 587,
+                            smtpClient.Credentials = new NetworkCredential("wongzx96@gmail.com", "fnekhicwwzfxuevt");
+                            smtpClient.EnableSsl = true;
+                            Console.WriteLine($"Ticket available for departure time {timeDeparture} at {timeTableDate}!");
+                            smtpClient.Send("wongzx96@gmail.com",
+                                "wongzx96@gmail.com",
+                                $"KTMB Available Ticket {timeTableDate} @{timeDeparture} Alert",
+                                $"Ticket is available now at departure time {timeDeparture} at {timeTableDate}!");
+                            smtpClient.Send("wongzx96@gmail.com",
+                                "holycowhell3@gmail.com",
+                                $"KTMB Available Ticket {timeTableDate} @{timeDeparture} Alert",
+                                $"Ticket is available now at departure time {timeDeparture} at {timeTableDate}!");
+                            smtpClient.Send("wongzx96@gmail.com",
+                                "kilinalaw@gmail.com",
+                                $"KTMB Available Ticket {timeTableDate} @{timeDeparture} Alert",
+                                $"Ticket is available now at departure time {timeDeparture} at {timeTableDate}!");
+                            smtpClient.Send("wongzx96@gmail.com",
+                                "kilinalawrencemarcus@gmail.com",
+                                $"KTMB Available Ticket {timeTableDate} @{timeDeparture} Alert",
+                                $"Ticket is available now at departure time {timeDeparture} at {timeTableDate}!");
+                            Console.WriteLine("Email sent...");
+                        }
                         break;
                     case "Login to view":
                         Console.WriteLine("Not yet logged in!");
@@ -357,7 +370,17 @@ class KtmbTrain
 
         return mthNumber;
     }
+    private int inputDateMth()
+    {
+        DateTime currDate = DateTime.Now;
+        var lastDayOfMth = DateTime.DaysInMonth(currDate.Year, currDate.Month);
 
+
+        int mthNumber = (searchDate.Year - currDate.Year) * 12 + (searchDate.Month - currDate.Month);
+        Console.WriteLine("mthNumber = " + mthNumber);
+
+        return mthNumber;
+    }
     //Main function to do all the stuffs
     private void checkLatestTicketForSale(int monthToSkip)
     {
@@ -389,9 +412,10 @@ class KtmbTrain
         {
             readTimetable();
             driver.Navigate().Refresh();
-            Thread.Sleep(30000);
+            Thread.Sleep(10000);
             foreverLoop--;
             Console.WriteLine("Loop no." +  foreverLoop);
+            Console.WriteLine("Time: " + DateTime.Now.TimeOfDay);
         } 
         while(foreverLoop < 1);
 
@@ -400,30 +424,59 @@ class KtmbTrain
         return;
     }
 
-
-    static void Main()
+    private void mainProcess(string[] args)
     {
-        //string strDate = "28/06/2024";
-        string strDate = "7/6/2024";
 
+        //ktmWeb.setupSmtp();
+        startBrowser();
+        loginAccount();
 
-        var ktmWeb = new KtmbTrain(DateTime.Parse(strDate));
-        Console.WriteLine("search date = " + ktmWeb.searchDate);
-        ktmWeb.setupSmtp();
-        ktmWeb.startBrowser();
-        ktmWeb.loginAccount();
-        ktmWeb.switchDestination();
-        if (strDate == null)
+        Thread.Sleep(500);
+        checkNoPaymentBtn();
+        switchDestination();
+
+        int mthToSkip;
+        if (args.Length == 0)
         {
-            int mthToSkip = ktmWeb.getOpenSalesMonth();
-            ktmWeb.checkLatestTicketForSale(mthToSkip);
+            mthToSkip = getOpenSalesMonth();
+            checkLatestTicketForSale(mthToSkip);
         }
         else
         {
-            ktmWeb.checkLatestTicketForSale(0);
+            mthToSkip = inputDateMth();
+            checkLatestTicketForSale(mthToSkip);
             //ktmWeb.searchInputDate();
         }
-        ktmWeb.closeBrowser();
+        closeBrowser();
+    }
+
+    static void Main(string[] args)
+    {
+        string strDate;
+        if (args.Length == 0)
+        {
+            strDate = DateTime.Now.ToString();
+        }
+        else
+        {
+            strDate = args[0];
+            Console.WriteLine($"Input date = {args[0]}");
+        }
+        //string strDate = "7/6/2024";
+        var ktmWeb = new KtmbTrain(DateTime.Parse(strDate));
+        Console.WriteLine("search date = " + ktmWeb.searchDate);
+
+        try
+        {
+            ktmWeb.mainProcess(args);
+        }
+        catch(Exception e)
+        {
+            Console.WriteLine("Exception hit! " + e);
+            ktmWeb.closeBrowser();
+            ktmWeb.mainProcess(args); //rerun if hit error
+        }
+
         Environment.Exit(0);
     }
 }

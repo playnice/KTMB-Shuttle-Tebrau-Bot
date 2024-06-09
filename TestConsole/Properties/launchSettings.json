@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "WSL": {
+      "commandName": "WSL2",
+      "distributionName": ""
+    },
+    "TestInput": {
+      "commandName": "Project",
+      "commandLineArgs": "28/6/2024"
+    }
+  }
+}
