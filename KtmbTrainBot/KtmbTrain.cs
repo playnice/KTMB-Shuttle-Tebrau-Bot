@@ -9,30 +9,40 @@ using System.Net.Mail;
 
 class KtmbTrain
 {
-    private static readonly string loginEmail = "wongzx96@gmail.com";
-    private static readonly string loginPassword = "Omfgleh96@@";
-    private IWebDriver? driver;
-    private DateOnly searchDate;
-    private SmtpClient smtpClient;
-    private KtmbTrain(DateTime inputDate)
+    public static readonly string loginEmail = "wongzx96@gmail.com";
+    public static readonly string loginPassword = "Omfgleh96@@";
+    public static IWebDriver? driver;
+    public DateOnly searchDate;
+    public static string strSearchDate;
+    public SmtpClient smtpClient;
+
+    public KtmbTrain()
+    {
+
+    }
+    public KtmbTrain(DateTime inputDate)
     {
         searchDate = DateOnly.FromDateTime(inputDate);
     }
-    private void startBrowser()
+    public void startBrowser()
     {
-        driver = new ChromeDriver();
+        ChromeOptions options = new();
+        options.AddArgument("no-sandbox");
+        driver = new ChromeDriver(ChromeDriverService.CreateDefaultService(), options, TimeSpan.FromMinutes(3));
+        
         driver.Url = "https://shuttleonline.ktmb.com.my/Home/Shuttle";
         string UrlTitle = driver.Title;
         Console.WriteLine("URL Title is: " + UrlTitle);
         //driver.Manage().Window.Maximize();
     }
-    private void closeBrowser()
+    public void closeBrowser()
     {
+        Console.WriteLine("Closing browser now");
         driver.Close();
         Console.WriteLine("browser closed");
     }
 
-    //private void setupSmtp()
+    //public void setupSmtp()
     //{
     //    smtpClient = new SmtpClient("smtp.gmail.com")
     //    {
@@ -41,7 +51,7 @@ class KtmbTrain
     //        EnableSsl = true,
     //    };
     //}
-    private bool untilClickable(IWebElement element)
+    public bool untilClickable(IWebElement element)
     {
         try
         {
@@ -57,7 +67,7 @@ class KtmbTrain
         };
     }
 
-    private bool elementAvailable(By findBy)
+    public bool elementAvailable(By findBy)
     {
         try
         {
@@ -77,7 +87,7 @@ class KtmbTrain
             return false;
         }
     }
-    private void checkNoPaymentBtn()
+    public void checkNoPaymentBtn()
     {
         var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(1))
         {
@@ -110,7 +120,7 @@ class KtmbTrain
         }
     }
 
-    private void selectCalendar()
+    public void selectCalendar()
     {
         var OnwardDate = driver.FindElement(By.XPath("//*[@id=\"OnwardDate\"]"));
         try
@@ -129,7 +139,7 @@ class KtmbTrain
         Console.WriteLine("Current month is " + currMonth.SelectedOption.Text + ", value is: " + calendar.GetAttribute("value"));
     }
 
-    private void selectXMthFromNow(int x)
+    public void selectXMthFromNow(int x)
     {
         // Get the current date and time
         DateTime currDate = DateTime.Now;
@@ -146,14 +156,14 @@ class KtmbTrain
         Console.WriteLine("Date x Months from Now: Month = " + monthXMonthsFromNow + ", Year = " + yearXMonthsFromNow);
     }
 
-    private void clickNextMonth()
+    public void clickNextMonth()
     {
         var nextMthBtn = driver.FindElement(By.XPath("/html/body/section/div/div[1]/section/header/div[2]/button[2]"));
         nextMthBtn.Click();
     }
 
 
-    private IWebElement checkDays()
+    public IWebElement checkDays()
     {
         //IList<IWebElement> daysList = driver.FindElements(By.XPath("/html/body/section/div/div[1]/section/div[2]"));
         //IList<IWebElement> daysList = driver.FindElements(By.XPath("//*[@class=\"lightpick__days\"]"));
@@ -200,7 +210,7 @@ class KtmbTrain
         //}
     }
 
-    private bool findLoginBtn(IWebElement loginBtn)
+    public bool findLoginBtn(IWebElement loginBtn)
     {
         try
         {
@@ -220,7 +230,7 @@ class KtmbTrain
         return false;
     }
 
-    private void loginAction()
+    public void loginAction()
     {
         var emailInput = driver.FindElement(By.XPath("//*[@id=\"Email\"]"));
         emailInput.SendKeys(loginEmail);
@@ -234,7 +244,7 @@ class KtmbTrain
         return;
     }
 
-    private void loginAccount()
+    public void loginAccount()
     {
         Thread.Sleep(1000);
         checkNoPaymentBtn();
@@ -253,14 +263,14 @@ class KtmbTrain
         Thread.Sleep(200);
     }
 
-    private void switchDestination()
+    public void switchDestination()
     {
         var switchBtn = driver.FindElement(By.XPath("//*[@id=\"theForm\"]/div/div[1]/i"));
         switchBtn.Click();
         Thread.Sleep(500);
     }
     //Function to get required departure time
-    private void readTimetable()
+    public void readTimetable()
     {
         var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(2))
         {
@@ -268,10 +278,37 @@ class KtmbTrain
         };
 
         var timeTableBy = By.CssSelector(".bg-white.depart-trips");
-        wait.Until(condition => elementAvailable(timeTableBy));
+        try
+        {
+            wait.Until(condition => elementAvailable(timeTableBy));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Exception in readTimetable() =>" + ex);
+            if (ex is WebDriverTimeoutException)
+            {
+                var tooManyRequest = driver.FindElement(By.XPath("//*[@id=\"popupModalBody\"]"));
+                Console.WriteLine("tooManyRequest.Text = " + tooManyRequest.Text);
+                if(tooManyRequest.Text == "Too Many Requests")
+                {
+                    int timeSleep = 300000;
+                    Console.WriteLine($"Too many requests! Wait for {timeSleep/60000} minutes");
+                    Thread.Sleep(timeSleep);   
+                }
+                Thread.Sleep(10000);
+            }
+            else
+            {
+                Console.WriteLine("Not WebDriverTimeoutException");
+                closeBrowser();
+                mainProcess(strSearchDate); //rerun if hit error
+            }
+        }
 
+        try
+        {
         //IList<IWebElement> departureTimes = timeTable.FindElements(By.TagName("tr"));
-
+        Thread.Sleep(1000);
         var timeTable = driver.FindElement(By.CssSelector(".bg-white.depart-trips"));
         IList<IWebElement> departureTimes = timeTable.FindElements(By.XPath("*"));
 
@@ -319,14 +356,14 @@ class KtmbTrain
                                 "holycowhell3@gmail.com",
                                 $"KTMB Available Ticket {timeTableDate} @{timeDeparture} Alert",
                                 $"Ticket is available now at departure time {timeDeparture} at {timeTableDate}!");
-                            smtpClient.Send("wongzx96@gmail.com",
-                                "kilinalaw@gmail.com",
-                                $"KTMB Available Ticket {timeTableDate} @{timeDeparture} Alert",
-                                $"Ticket is available now at departure time {timeDeparture} at {timeTableDate}!");
-                            smtpClient.Send("wongzx96@gmail.com",
-                                "kilinalawrencemarcus@gmail.com",
-                                $"KTMB Available Ticket {timeTableDate} @{timeDeparture} Alert",
-                                $"Ticket is available now at departure time {timeDeparture} at {timeTableDate}!");
+                            //smtpClient.Send("wongzx96@gmail.com",
+                            //    "kilinalaw@gmail.com",
+                            //    $"KTMB Available Ticket {timeTableDate} @{timeDeparture} Alert",
+                            //    $"Ticket is available now at departure time {timeDeparture} at {timeTableDate}!");
+                            //smtpClient.Send("wongzx96@gmail.com",
+                            //    "kilinalawrencemarcus@gmail.com",
+                            //    $"KTMB Available Ticket {timeTableDate} @{timeDeparture} Alert",
+                            //    $"Ticket is available now at departure time {timeDeparture} at {timeTableDate}!");
                             Console.WriteLine("Email sent...");
                         }
                         break;
@@ -349,9 +386,17 @@ class KtmbTrain
             }
         }
 
+        }
+        catch (Exception ex) 
+        { 
+            Console.WriteLine("Exception when finding timetable => " + ex.Message);
+            closeBrowser();
+            mainProcess(strSearchDate); //rerun if hit error
+        }
+
     }
 
-    private int getOpenSalesMonth()
+    public int getOpenSalesMonth()
     {
         DateTime currDate = DateTime.Now;
         var lastDayOfMth = DateTime.DaysInMonth(currDate.Year, currDate.Month);
@@ -370,7 +415,7 @@ class KtmbTrain
 
         return mthNumber;
     }
-    private int inputDateMth()
+    public int inputDateMth()
     {
         DateTime currDate = DateTime.Now;
         var lastDayOfMth = DateTime.DaysInMonth(currDate.Year, currDate.Month);
@@ -382,7 +427,7 @@ class KtmbTrain
         return mthNumber;
     }
     //Main function to do all the stuffs
-    private void checkLatestTicketForSale(int monthToSkip)
+    public void checkLatestTicketForSale(int monthToSkip)
     {
         selectCalendar();
         Thread.Sleep(500);
@@ -412,7 +457,7 @@ class KtmbTrain
         {
             readTimetable();
             driver.Navigate().Refresh();
-            Thread.Sleep(10000);
+            Thread.Sleep(90000000); //Refresh every x seconds
             foreverLoop--;
             Console.WriteLine("Loop no." +  foreverLoop);
             Console.WriteLine("Time: " + DateTime.Now.TimeOfDay);
@@ -424,7 +469,7 @@ class KtmbTrain
         return;
     }
 
-    private void mainProcess(string[] args)
+    public void mainProcess(string searchDate)
     {
 
         //ktmWeb.setupSmtp();
@@ -436,7 +481,7 @@ class KtmbTrain
         switchDestination();
 
         int mthToSkip;
-        if (args.Length == 0)
+        if (searchDate.Length == 0)
         {
             mthToSkip = getOpenSalesMonth();
             checkLatestTicketForSale(mthToSkip);
@@ -462,23 +507,23 @@ class KtmbTrain
             strDate = args[0];
             Console.WriteLine($"Input date = {args[0]}");
         }
+
+        strSearchDate = strDate;
         //string strDate = "7/6/2024";
         var ktmWeb = new KtmbTrain(DateTime.Parse(strDate));
         Console.WriteLine("search date = " + ktmWeb.searchDate);
 
         try
         {
-            ktmWeb.mainProcess(args);
+            ktmWeb.mainProcess(strSearchDate);
         }
-        catch(Exception e)
+        catch (Exception e)
         {
-            Console.WriteLine("Exception hit! " + e);
+            Console.WriteLine("Exception hit in main! " + e);
             ktmWeb.closeBrowser();
-            ktmWeb.mainProcess(args); //rerun if hit error
+            ktmWeb.mainProcess(strSearchDate); //rerun if hit error
         }
 
         Environment.Exit(0);
     }
 }
-
-
