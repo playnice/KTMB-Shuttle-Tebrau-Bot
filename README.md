@@ -1,1 +1,1 @@
-# TestSln
+This bot is created to ease the pain of having to monitor for refunded train ticket. This bot will 24/7 watch intended time & date for KTMB Shuttle Tebrau train ticket for you. It will auto purchase whenever a ticket is refunded for specified timeslot.
