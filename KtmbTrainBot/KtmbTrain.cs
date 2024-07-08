@@ -3,8 +3,10 @@ using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Interactions;
 using OpenQA.Selenium.Support.UI;
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.Net;
 using System.Net.Mail;
+using System.Runtime.InteropServices;
 using TwoCaptcha.Captcha;
 
 namespace TwoCaptcha
@@ -20,6 +22,13 @@ namespace TwoCaptcha
         public static TwoCaptcha solver;
         public static ReCaptcha captcha;
         public static List<string> preferredDepartTime = new List<string> { "2000", "2115", "2130" };
+        public struct Passenger
+        {
+            public static readonly string name = "Kilina Lawrence";
+            public static readonly string passportNo = "H57698763";
+            public static readonly string passportExp = "30 Jun 2028";
+            public static readonly string contactNo = "+601133981245";
+        }
 
         public KtmbTrain()
         {
@@ -287,34 +296,65 @@ namespace TwoCaptcha
 
         public void sendEmail(string timeDeparture, string timeTableDate)
         {
+            var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10))
+            {
+                PollingInterval = TimeSpan.FromMilliseconds(200),
+            };
+
+            var bookingConfirmedElem = By.XPath("/html/body/div[2]/div/div[1]/div[1]/div");
+            try
+            {
+                wait.Until(condition => elementAvailable(bookingConfirmedElem));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error waiting for bookingConfirmedElem: " + ex.Message);
+            }
             using (SmtpClient smtpClient = new SmtpClient("smtp.gmail.com", 587))
             {
                 //Port = 587,
                 smtpClient.Credentials = new NetworkCredential("wongzx96@gmail.com", "fnekhicwwzfxuevt");
                 smtpClient.EnableSsl = true;
-                Console.WriteLine($"Ticket available for departure time {timeDeparture} at {timeTableDate}!");
-                smtpClient.Send("wongzx96@gmail.com",
-                    "wongzx96@gmail.com",
-                    $"KTMB Available Ticket {timeTableDate} @{timeDeparture} Alert",
-                    $"Ticket is available now at departure time {timeDeparture} at {timeTableDate}!");
-                smtpClient.Send("wongzx96@gmail.com",
-                    "holycowhell3@gmail.com",
-                    $"KTMB Available Ticket {timeTableDate} @{timeDeparture} Alert",
-                    $"Ticket is available now at departure time {timeDeparture} at {timeTableDate}!");
-                //smtpClient.Send("wongzx96@gmail.com",
-                //    "kilinalaw@gmail.com",
-                //    $"KTMB Available Ticket {timeTableDate} @{timeDeparture} Alert",
-                //    $"Ticket is available now at departure time {timeDeparture} at {timeTableDate}!");
-                //smtpClient.Send("wongzx96@gmail.com",
-                //    "kilinalawrencemarcus@gmail.com",
-                //    $"KTMB Available Ticket {timeTableDate} @{timeDeparture} Alert",
-                //    $"Ticket is available now at departure time {timeDeparture} at {timeTableDate}!");
+
+                var bookingConfirmed = driver.FindElement(bookingConfirmedElem);
+                var fromTo = driver.FindElement(By.XPath("/html/body/div[2]/div/div[2]/div[2]/div[2]/div/div/div[1]/p"));
+                if (bookingConfirmed.Text == "Your booking has been confirmed.")
+                {
+                    smtpClient.Send("wongzx96@gmail.com",
+                        "wongzx96@gmail.com",
+                        $"KTMB Ticket for {fromTo.Text}, {timeTableDate} @{timeDeparture} purchased",
+                        $"Ticket is purchased for {fromTo.Text}, departure time {timeDeparture} at {timeTableDate}!");
+                    smtpClient.Send("wongzx96@gmail.com",
+                        "holycowhell3@gmail.com",
+                        $"KTMB Ticket for {fromTo.Text}, {timeTableDate} @{timeDeparture} purchased",
+                        $"Ticket is purchased for {fromTo.Text}, departure time {timeDeparture} at {timeTableDate}!");
+                }
+                else
+                {
+                    smtpClient.Send("wongzx96@gmail.com",
+                        "wongzx96@gmail.com",
+                        $"KTMB Available Ticket {timeTableDate} @{timeDeparture} Alert",
+                        $"Ticket is available now at departure time {timeDeparture} at {timeTableDate}!");
+                    smtpClient.Send("wongzx96@gmail.com",
+                        "holycowhell3@gmail.com",
+                        $"KTMB Available Ticket {timeTableDate} @{timeDeparture} Alert",
+                        $"Ticket is available now at departure time {timeDeparture} at {timeTableDate}!");
+                    //smtpClient.Send("wongzx96@gmail.com",
+                    //    "kilinalaw@gmail.com",
+                    //    $"KTMB Available Ticket {timeTableDate} @{timeDeparture} Alert",
+                    //    $"Ticket is available now at departure time {timeDeparture} at {timeTableDate}!");
+                    //smtpClient.Send("wongzx96@gmail.com",
+                    //    "kilinalawrencemarcus@gmail.com",
+                    //    $"KTMB Available Ticket {timeTableDate} @{timeDeparture} Alert",
+                    //    $"Ticket is available now at departure time {timeDeparture} at {timeTableDate}!");
+                }
                 Console.WriteLine("Email sent...");
             }
         }
 
         public string solveCaptcha()
         {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
             Console.WriteLine("Solving captcha...");
             try
             {
@@ -326,9 +366,73 @@ namespace TwoCaptcha
                 Console.WriteLine("Error occurred: " + e.InnerExceptions.First().Message);
             }
 
+            watch.Stop();
+            var elapsedMs = watch.ElapsedMilliseconds;
+            Console.WriteLine($"Captcha solved in {elapsedMs}ms");
             return captcha.Code;
         }
 
+        public void fillInPersonalDetails()
+        {
+            var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10))
+            {
+                PollingInterval = TimeSpan.FromMilliseconds(200),
+            };
+
+            var paymentBtnElem = By.XPath("//*[@id=\"btnConfirmPayment\"]");
+            try
+            {
+                wait.Until(condition => elementAvailable(paymentBtnElem));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error waiting for paymentBtnElem: " + ex.Message);
+            }
+
+            var passengerNameBox = driver.FindElement(By.XPath("//*[@id=\"Passengers_0__FullName\"]"));
+            passengerNameBox.SendKeys(Passenger.name);
+
+            //var passportNoBox = driver.FindElement(By.XPath("//*[@id=\"Passengers_0__PassportNo\"]"));
+            //passportNoBox.SendKeys(Passenger.passportNo);
+            ////((IJavaScriptExecutor)driver).ExecuteScript("document.getElementById('Passengers_0__PassportExpiryDate').removeAttribute('readonly',0);");
+
+            //var passportExpBox = driver.FindElement(By.XPath("//*[@id=\"Passengers_0__PassportExpiryDate\"]"));
+            ////passportExpBox.SendKeys(Passenger.passportExp);
+            //passportExpBox.Click();
+            //var expYearPick = driver.FindElement(By.XPath("/html/body/section/div/div[1]/section/header/div[1]/select[2]"));
+
+            var ticketType = driver.FindElement(By.XPath("//*[@id=\"Passengers_0__TicketTypeId\"]"));
+            SelectElement selectTicketType = new SelectElement(ticketType);
+            selectTicketType.SelectByText("DEWASA/ADULT");
+
+        }
+
+        public void proceedPayment()
+        {
+            var proceedPaymentBtn = driver.FindElement(By.XPath("//*[@id=\"btnConfirmPayment\"]"));
+            proceedPaymentBtn.Click();
+
+
+            var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10))
+            {
+                PollingInterval = TimeSpan.FromMilliseconds(200),
+            };
+
+            var ktmbWalletElem = By.XPath("//*[@id=\"btnKtmbEWallet\"]");
+            try
+            {
+                wait.Until(condition => elementAvailable(ktmbWalletElem));
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine("Error waiting for ktmbWalletBtn: " + ex.Message);
+            }
+
+            Thread.Sleep(1000);
+            var ktmbWalletBtn = driver.FindElement(ktmbWalletElem);
+            ktmbWalletBtn.Click();
+
+        }
         //Function to get required departure time
         public void readTimetable()
         {
@@ -396,20 +500,25 @@ namespace TwoCaptcha
                         //string selectBtnText = timeList.GetAttribute("text");                
                         //selectBtnText = timeList.GetAttribute("value");
                         selectBtnText = selectTimeBtn.Text;
-                        //Console.WriteLine("Btn Value: " + selectBtnText);
+                        Console.WriteLine("Btn Value: " + selectBtnText);
                         switch (selectBtnText)
                         {
                             case "Sold Out":
                                 Console.WriteLine($"Ticket sold out for departure time {timeDeparture} at {timeTableDate}!");
                                 break;
                             case "Select":
+                                Console.WriteLine($"Ticket available for departure time {timeDeparture} at {timeTableDate}!");
                                 selectTimeBtn.Click();
                                 string captchaCode = solveCaptcha();
                                 IJavaScriptExecutor js = (IJavaScriptExecutor)driver;
                                 try
                                 {
                                     js.ExecuteScript($"RecaptchaCallback(\"{captchaCode}\")");
+                                    Thread.Sleep(500);
+                                    fillInPersonalDetails();
+                                    proceedPayment();
                                     sendEmail(timeDeparture, timeTableDate);
+                                    terminatePgm();
                                 }
                                 catch (Exception jsException)
                                 {
@@ -506,7 +615,7 @@ namespace TwoCaptcha
             {
                 readTimetable();
                 driver.Navigate().Refresh();
-                Thread.Sleep(90000000); //Refresh every x seconds
+                Thread.Sleep(10000); //Refresh every x seconds
                 foreverLoop--;
                 Console.WriteLine("Loop no." + foreverLoop);
                 Console.WriteLine("Time: " + DateTime.Now.TimeOfDay);
@@ -527,7 +636,7 @@ namespace TwoCaptcha
 
             Thread.Sleep(500);
             checkNoPaymentBtn();
-            //switchDestination();
+            switchDestination();
 
             int mthToSkip;
             if (searchDate.Length == 0)
@@ -559,7 +668,8 @@ namespace TwoCaptcha
 
             strSearchDate = strDate;
             //string strDate = "7/6/2024";
-            var ktmWeb = new KtmbTrain(DateTime.Parse(strDate));
+            var ktmWeb = new KtmbTrain(DateTime.ParseExact(strDate, "d/M/yyyy", CultureInfo.InvariantCulture));
+            //var ktmWeb = new KtmbTrain(DateTime.Parse(strDate));
             ktmWeb.setupTwoCaptcha();
 
             Console.WriteLine("search date = " + ktmWeb.searchDate);
@@ -575,6 +685,13 @@ namespace TwoCaptcha
                 ktmWeb.mainProcess(strSearchDate); //rerun if hit error
             }
 
+            Environment.Exit(0);
+        }
+
+        public void terminatePgm()
+        {
+            Console.WriteLine("Terminating program...");
+            closeBrowser();
             Environment.Exit(0);
         }
     }
