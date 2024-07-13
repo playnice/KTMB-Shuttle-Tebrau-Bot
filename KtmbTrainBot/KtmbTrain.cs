@@ -294,6 +294,30 @@ namespace TwoCaptcha
             Thread.Sleep(500);
         }
 
+        //There is this popup notice telling you can't buy ticket between 11pm~12.15am, but it popup at 10.30pm
+        //So we should check if this popup is there to prevent the 30 minutes timeframe of unable to buy ticket
+        public void underMaintenanceCheck()
+        {
+            TimeSpan start = new TimeSpan(22, 30, 0); //10 o'clock
+            TimeSpan end = new TimeSpan(24, 15, 0); //12 o'clock
+            TimeSpan now = DateTime.Now.TimeOfDay;
+
+            //between 10.30pm ~ 12.15am
+            if ((now > start) && (now < end))
+            {
+                var maintenanceBtnElem = By.XPath("//*[@id=\"popupModalCloseButton\"]");
+                var maintenanceBtn = driver.FindElement(maintenanceBtnElem);
+
+                var wait = new WebDriverWait(driver, TimeSpan.FromMilliseconds(500))
+                {
+                    PollingInterval = TimeSpan.FromMilliseconds(50),
+                };
+
+                wait.Until(condition => elementAvailable(maintenanceBtnElem));
+                maintenanceBtn.Click();
+            }
+        }
+
         public void sendEmail(string timeDeparture, string timeTableDate)
         {
             var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10))
@@ -481,9 +505,12 @@ namespace TwoCaptcha
 
                 var timeTableDateElm = driver.FindElement(By.XPath("/html/body/div[2]/div[1]/div/div[2]/div[1]/div[2]/div/table/thead/tr/th[4]/div"));
                 string timeTableDate = timeTableDateElm.Text;
+                Thread.Sleep(1000);
                 //Console.WriteLine($"timeTableDate={timeTableDate}");
 
-                Thread.Sleep(1000);
+
+                underMaintenanceCheck();
+
 
                 int i = 0;
                 foreach (IWebElement timeList in departureTimes)
@@ -500,7 +527,7 @@ namespace TwoCaptcha
                         //string selectBtnText = timeList.GetAttribute("text");                
                         //selectBtnText = timeList.GetAttribute("value");
                         selectBtnText = selectTimeBtn.Text;
-                        Console.WriteLine("Btn Value: " + selectBtnText);
+                        //Console.WriteLine("Btn Value: " + selectBtnText);
                         switch (selectBtnText)
                         {
                             case "Sold Out":
